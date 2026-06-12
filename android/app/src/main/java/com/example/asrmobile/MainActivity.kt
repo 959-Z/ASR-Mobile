@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Button
@@ -78,6 +79,10 @@ class MainActivity : AppCompatActivity() {
             text = "Transcribe latest recording"
             setOnClickListener { transcribeLatestRecording() }
         }
+        val playButton = Button(this).apply {
+            text = "▶ Play latest recording"
+            setOnClickListener { playLatestRecording() }
+        }
         val benchmarkButton = Button(this).apply {
             text = "Run benchmark"
             setOnClickListener { runBenchmark() }
@@ -95,6 +100,7 @@ class MainActivity : AppCompatActivity() {
             addView(loadModelButton)
             addView(recordButton)
             addView(transcribeButton)
+            addView(playButton)
             addView(benchmarkButton)
             addView(TextView(context).apply { text = "Transcript"; textSize = 18f })
             addView(transcriptText)
@@ -112,7 +118,7 @@ class MainActivity : AppCompatActivity() {
     private fun populateModelList(container: LinearLayout) {
         val models = modelRepository.getBundledModels()
         if (models.isEmpty()) {
-            container.addView(TextView(context).apply {
+            container.addView(TextView(this).apply {
                 text = "(No built-in models registered)"
                 setPadding(16, 8, 16, 8)
             })
@@ -131,7 +137,7 @@ class MainActivity : AppCompatActivity() {
 
             // 描述文字
             if (model.description.isNotBlank()) {
-                container.addView(TextView(context).apply {
+                container.addView(TextView(this).apply {
                     text = model.description
                     textSize = 12f
                     setPadding(24, 0, 0, 8)
@@ -238,6 +244,35 @@ class MainActivity : AppCompatActivity() {
                 updateStatus("Transcription finished.")
             }
         }.start()
+    }
+
+    private fun playLatestRecording() {
+        val recording = latestRecording
+        if (recording == null || !recording.exists()) {
+            updateStatus("No recording yet.")
+            return
+        }
+
+        updateStatus("Playing ${recording.name}...")
+        MediaPlayer().apply {
+            try {
+                setDataSource(recording.absolutePath)
+                prepare()
+                start()
+                setOnCompletionListener {
+                    release()
+                    runOnUiThread { updateStatus("Playback finished.") }
+                }
+                setOnErrorListener { _, what, extra ->
+                    release()
+                    runOnUiThread { updateStatus("Playback error: $what / $extra") }
+                    true
+                }
+            } catch (e: Exception) {
+                release()
+                updateStatus("Playback failed: ${e.message}")
+            }
+        }
     }
 
     private fun runBenchmark() {

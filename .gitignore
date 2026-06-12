@@ -2,8 +2,14 @@ android/.gradle/
 android/build/
 android/app/build/
 android/app/.cxx/
+android/app/.gradle/
 android/local.properties
+android/app/local.properties
 *.iml
+.idea/
+android/.idea/caches/
+android/.idea/deviceManager.xml
+android/app/.idea/
 
 models/*
 !models/README.md
