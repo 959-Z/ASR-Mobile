@@ -25,5 +25,6 @@ benchmarks/
 *.onnx
 *.tflite
 
+*.keystore
 .DS_Store
 Thumbs.db
