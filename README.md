@@ -41,7 +41,9 @@ Until `whisper.cpp` and a model are provided, the app scaffold is designed to re
 ASR Mobile/
 ├── android/                 # Android/Kotlin/NDK scaffold
 ├── docs/                    # Architecture and deployment notes
-├── models/                  # Local model placeholder; model files ignored by Git
+├── models/                  # Whisper.cpp GGML/GGUF model files
+├── model_benchmark/         # PC benchmark suite & results
+├── model_eval/              # Python evaluation scripts & results
 ├── samples/                 # Local sample audio placeholder; audio files ignored by Git
 ├── scripts/                 # Safe helper scripts; no model downloads
 ├── BENCHMARKING.md
