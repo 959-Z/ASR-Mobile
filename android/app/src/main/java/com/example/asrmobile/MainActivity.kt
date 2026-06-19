@@ -28,6 +28,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var metricsText: TextView
 
     private var selectedModelPath: String? = null
+    private var selectedModelName: String = "not selected"
+    private var selectedQuantization: String = "unknown"
+    private var latestLoadTimeMs: Long? = null
     private var latestRecording: File? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -154,11 +157,14 @@ class MainActivity : AppCompatActivity() {
     private fun selectBundledModel(model: BundledModel) {
         updateStatus("Preparing ${model.displayName}...")
         selectedModelPath = null
+        latestLoadTimeMs = null
         Thread {
             val result = runCatching { modelRepository.deployModel(model).absolutePath }
             runOnUiThread {
                 result.onSuccess { path ->
                     selectedModelPath = path
+                    selectedModelName = model.displayName
+                    selectedQuantization = inferQuantization(model.fileName)
                     updateStatus("Selected built-in model: ${model.displayName}")
                 }.onFailure {
                     updateStatus("Failed to prepare model: ${it.message}")
@@ -187,6 +193,9 @@ class MainActivity : AppCompatActivity() {
                 )
                 val path = modelFileManager.copyModelUriToAppStorage(uri).absolutePath
                 selectedModelPath = path
+                selectedModelName = File(path).name
+                selectedQuantization = inferQuantization(path)
+                latestLoadTimeMs = null
                 updateStatus("Selected external model file: $path")
             }
         }
@@ -206,9 +215,16 @@ class MainActivity : AppCompatActivity() {
 
         updateStatus("Loading model...")
         Thread {
-            val result = runCatching { whisperEngine.loadModel(path) }
+            val result = runCatching {
+                val start = System.nanoTime()
+                whisperEngine.loadModel(path)
+                (System.nanoTime() - start) / 1_000_000
+            }
             runOnUiThread {
-                result.onSuccess { updateStatus("Model loaded successfully.") }
+                result.onSuccess { loadTimeMs ->
+                    latestLoadTimeMs = loadTimeMs
+                    updateStatus("Model loaded successfully in ${loadTimeMs} ms.")
+                }
                     .onFailure { updateStatus("Model load failed: ${it.message}") }
             }
         }.start()
@@ -283,8 +299,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         Thread {
-            val result = benchmarkRunner.benchmark(recording, selectedModelPath)
-            runOnUiThread { metricsText.text = result.toDisplayText() }
+            val report = benchmarkRunner.benchmark(
+                audioFile = recording,
+                modelPath = selectedModelPath,
+                modelName = selectedModelName,
+                quantization = selectedQuantization,
+                loadTimeMs = latestLoadTimeMs,
+                repetitions = 3
+            )
+            val exportFile = benchmarkRunner.exportCsv(report)
+            runOnUiThread {
+                metricsText.text = report.toDisplayText(exportFile)
+                updateStatus("Benchmark finished. CSV saved: ${exportFile.absolutePath}")
+            }
         }.start()
     }
 
@@ -310,6 +337,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun TextView.withPadding(): TextView = apply { setPadding(0, 12, 0, 12) }
+
+    private fun inferQuantization(value: String): String {
+        val normalized = value.lowercase()
+        return when {
+            "q8" in normalized -> "Q8"
+            "q5" in normalized -> "Q5"
+            "q4" in normalized -> "Q4"
+            "fp16" in normalized || "f16" in normalized -> "FP16"
+            "fp32" in normalized || "f32" in normalized -> "FP32"
+            else -> "unknown"
+        }
+    }
 
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
