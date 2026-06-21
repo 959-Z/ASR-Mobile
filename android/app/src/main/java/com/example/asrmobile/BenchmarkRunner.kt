@@ -17,15 +17,20 @@ class BenchmarkRunner(
         modelPath: String?,
         modelName: String,
         quantization: String,
+        audioLanguage: String,
         loadTimeMs: Long?,
-        repetitions: Int
+        repetitions: Int,
+        onProgress: ((Int, Int) -> Unit)? = null
     ): BenchmarkReport {
-        val runs = (1..maxOf(1, repetitions)).map { runIndex ->
+        val totalRuns = maxOf(1, repetitions)
+        val runs = (1..totalRuns).map { runIndex ->
+            onProgress?.invoke(runIndex, totalRuns)
             benchmarkOnce(
                 audioFile = audioFile,
                 modelPath = modelPath,
                 modelName = modelName,
                 quantization = quantization,
+                audioLanguage = audioLanguage,
                 loadTimeMs = loadTimeMs,
                 runIndex = runIndex
             )
@@ -38,6 +43,7 @@ class BenchmarkRunner(
         modelPath: String?,
         modelName: String,
         quantization: String,
+        audioLanguage: String,
         loadTimeMs: Long?,
         runIndex: Int
     ): BenchmarkResult {
@@ -63,6 +69,7 @@ class BenchmarkRunner(
             abi = Build.SUPPORTED_ABIS.firstOrNull() ?: "unknown",
             modelName = modelName,
             quantization = quantization,
+            audioLanguage = audioLanguage,
             modelPath = modelPath ?: "not selected",
             modelSizeMb = modelPath?.let { File(it).takeIf(File::exists)?.length()?.toDouble()?.div(1024.0 * 1024.0) },
             audioFile = audioFile.name,
@@ -104,6 +111,7 @@ data class BenchmarkResult(
     val abi: String,
     val modelName: String,
     val quantization: String,
+    val audioLanguage: String,
     val modelPath: String,
     val modelSizeMb: Double?,
     val audioFile: String,
@@ -123,6 +131,7 @@ data class BenchmarkResult(
         abi,
         modelName,
         quantization,
+        audioLanguage,
         modelPath,
         modelSizeMb?.format(2) ?: "",
         audioFile,
@@ -149,6 +158,7 @@ data class BenchmarkResult(
         appendLine("ABI: $abi")
         appendLine("Model name: $modelName")
         appendLine("Quantization: $quantization")
+        appendLine("Audio language: $audioLanguage")
         appendLine("Model: $modelPath")
         appendLine("Model size: ${modelSizeMb?.format(2) ?: "unknown"} MB")
         appendLine("Audio: $audioFile (${audioSeconds.format(2)} s)")
@@ -168,7 +178,7 @@ data class BenchmarkReport(
     val runs: List<BenchmarkResult>
 ) {
     private val averageInferenceMs: Double =
-        runs.map { it.inferenceMs }.averageOrNaN()
+        runs.map { it.inferenceMs.toDouble() }.averageOrNaN()
     private val averageRtf: Double =
         runs.map { it.realTimeFactor }.averageOrNaN()
     private val averageJavaHeapDeltaMb: Double =
@@ -188,6 +198,7 @@ data class BenchmarkReport(
         appendLine("ABI: ${first.abi}")
         appendLine("Model name: ${first.modelName}")
         appendLine("Quantization: ${first.quantization}")
+        appendLine("Audio language: ${first.audioLanguage}")
         appendLine("Model path: ${first.modelPath}")
         appendLine("Model size: ${first.modelSizeMb?.format(2) ?: "unknown"} MB")
         appendLine("Audio: ${first.audioFile} (${first.audioSeconds.format(2)} s)")
@@ -218,6 +229,7 @@ data class BenchmarkReport(
                 "abi",
                 "model_name",
                 "quantization",
+                "audio_language",
                 "model_path",
                 "model_size_mb",
                 "audio_file",

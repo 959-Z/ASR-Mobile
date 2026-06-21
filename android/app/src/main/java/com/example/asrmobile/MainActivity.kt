@@ -8,6 +8,8 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Button
+import android.widget.EditText
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -24,12 +26,17 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var transcriptText: TextView
     private lateinit var metricsText: TextView
+    private lateinit var audioLanguageInput: EditText
+    private lateinit var workflowProgress: ProgressBar
+    private lateinit var progressDetailText: TextView
+    private lateinit var experimentSummaryText: TextView
 
     private var selectedModelPath: String? = null
     private var selectedModelName: String = "not selected"
     private var selectedQuantization: String = "unknown"
     private var latestLoadTimeMs: Long? = null
     private var latestRecording: File? = null
+    private var busyButtons: List<Button> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,19 +48,46 @@ class MainActivity : AppCompatActivity() {
         setupViewsAndListeners()
 
         requestMicrophonePermissionIfNeeded()
-        updateStatus("Ready. Select a built-in model or pick a model file.")
+        if (!restoreLatestRecording()) {
+            updateStatus("Ready. Select a built-in model or pick a model file.")
+        }
+        handleAutomationIntent(intent)
     }
 
     private fun setupViewsAndListeners() {
         statusText = findViewById(R.id.tv_status)
         transcriptText = findViewById(R.id.tv_transcript)
         metricsText = findViewById(R.id.tv_metrics)
+        audioLanguageInput = findViewById(R.id.et_audio_language)
+        workflowProgress = findViewById(R.id.progress_workflow)
+        progressDetailText = findViewById(R.id.tv_progress_detail)
+        experimentSummaryText = findViewById(R.id.tv_experiment_summary)
 
-        findViewById<Button>(R.id.btn_select_model).setOnClickListener {
+        val selectModelButton = findViewById<Button>(R.id.btn_select_model)
+        val useBundledButton = findViewById<Button>(R.id.btn_use_bundled)
+        val loadModelButton = findViewById<Button>(R.id.btn_load_model)
+        val recordButton = findViewById<Button>(R.id.btn_record)
+        val transcribeButton = findViewById<Button>(R.id.btn_transcribe)
+        val benchmarkButton = findViewById<Button>(R.id.btn_benchmark)
+        val playButton = findViewById<Button>(R.id.btn_play)
+
+        busyButtons = listOf(
+            selectModelButton,
+            useBundledButton,
+            loadModelButton,
+            recordButton,
+            transcribeButton,
+            benchmarkButton,
+            playButton
+        )
+
+        updateExperimentSummary()
+
+        selectModelButton.setOnClickListener {
             selectModelFile()
         }
 
-        findViewById<Button>(R.id.btn_use_bundled).setOnClickListener {
+        useBundledButton.setOnClickListener {
             val builtInModel = modelRepository.getBundledModels().firstOrNull()
             if (builtInModel != null) {
                 selectBundledModel(builtInModel)
@@ -62,28 +96,30 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        findViewById<Button>(R.id.btn_load_model).setOnClickListener {
+        loadModelButton.setOnClickListener {
             loadSelectedModel()
         }
 
-        findViewById<Button>(R.id.btn_record).setOnClickListener {
+        recordButton.setOnClickListener {
             recordShortClip()
         }
 
-        findViewById<Button>(R.id.btn_transcribe).setOnClickListener {
+        transcribeButton.setOnClickListener {
             transcribeLatestRecording()
         }
 
-        findViewById<Button>(R.id.btn_benchmark).setOnClickListener {
+        benchmarkButton.setOnClickListener {
             runBenchmark()
         }
 
-        findViewById<Button>(R.id.btn_play)?.setOnClickListener {
+        playButton.setOnClickListener {
             playLatestRecording()
         }
     }
 
     private fun selectBundledModel(model: BundledModel) {
+        setBusy(true)
+        updateProgress(10, "Preparing bundled model...")
         updateStatus("Preparing ${model.displayName}...")
         selectedModelPath = null
         latestLoadTimeMs = null
@@ -94,10 +130,14 @@ class MainActivity : AppCompatActivity() {
                     selectedModelPath = path
                     selectedModelName = model.displayName
                     selectedQuantization = inferQuantization(model.fileName)
+                    updateProgress(25, "Model selected")
+                    updateExperimentSummary()
                     updateStatus("Selected built-in model: ${model.displayName}")
                 }.onFailure {
+                    updateProgress(0, "Model selection failed")
                     updateStatus("Failed to prepare model: ${it.message}")
                 }
+                setBusy(false)
             }
         }.start()
     }
@@ -124,18 +164,53 @@ class MainActivity : AppCompatActivity() {
                 selectedModelName = File(path).name
                 selectedQuantization = inferQuantization(path)
                 latestLoadTimeMs = null
+                updateProgress(25, "External model selected")
+                updateExperimentSummary()
                 updateStatus("Selected external model file: $path")
             }
         }
     }
 
-    private fun loadSelectedModel() {
+    private fun selectExternalModelPath(path: String, displayName: String? = null) {
+        val file = File(path)
+        selectedModelPath = path
+        selectedModelName = displayName?.ifBlank { null } ?: file.name
+        selectedQuantization = inferQuantization(file.name)
+        latestLoadTimeMs = null
+        updateProgress(25, "External model selected")
+        updateExperimentSummary()
+        updateStatus("Selected external model file: $path")
+    }
+
+    private fun handleAutomationIntent(intent: Intent?) {
+        val path = intent?.getStringExtra(EXTRA_MODEL_PATH) ?: return
+        intent.getStringExtra(EXTRA_AUDIO_LANGUAGE)
+            ?.takeIf { it.isNotBlank() }
+            ?.let { audioLanguageInput.setText(it) }
+        selectExternalModelPath(
+            path = path,
+            displayName = intent.getStringExtra(EXTRA_MODEL_NAME)
+        )
+        if (intent.getBooleanExtra(EXTRA_AUTO_LOAD, false)) {
+            loadSelectedModel(
+                afterLoaded = if (intent.getBooleanExtra(EXTRA_AUTO_BENCHMARK, false)) {
+                    { runBenchmark() }
+                } else {
+                    null
+                }
+            )
+        }
+    }
+
+    private fun loadSelectedModel(afterLoaded: (() -> Unit)? = null) {
         val path = selectedModelPath
         if (path == null) {
             updateStatus("No model selected. Pick a built-in model or a model file first.")
             return
         }
 
+        setBusy(true)
+        updateProgress(35, "Loading selected model...")
         updateStatus("Loading model...")
         Thread {
             val result = runCatching {
@@ -146,9 +221,17 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread {
                 result.onSuccess { loadTimeMs ->
                     latestLoadTimeMs = loadTimeMs
+                    updateProgress(50, "Model loaded in ${loadTimeMs} ms")
+                    updateExperimentSummary()
                     updateStatus("Model loaded successfully in ${loadTimeMs} ms.")
+                    setBusy(false)
+                    afterLoaded?.invoke()
                 }
-                    .onFailure { updateStatus("Model load failed: ${it.message}") }
+                    .onFailure {
+                        updateProgress(25, "Model load failed")
+                        updateStatus("Model load failed: ${it.message}")
+                        setBusy(false)
+                    }
             }
         }.start()
     }
@@ -159,12 +242,36 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        setBusy(true)
+        updateProgress(60, "Recording 10 seconds...")
         updateStatus("Recording 10 seconds...")
         Thread {
-            val recording = audioRecorder.recordBlocking(seconds = 10)
-            latestRecording = recording
-            runOnUiThread { updateStatus("Recording saved: ${recording.absolutePath}") }
+            val result = runCatching { audioRecorder.recordBlocking(seconds = 10) }
+            runOnUiThread {
+                result.onSuccess { recording ->
+                    latestRecording = recording
+                    updateProgress(70, "Recording saved")
+                    updateExperimentSummary()
+                    updateStatus("Recording saved: ${recording.absolutePath}")
+                }.onFailure {
+                    updateProgress(50, "Recording failed")
+                    updateStatus("Recording failed: ${it.message}")
+                }
+                setBusy(false)
+            }
         }.start()
+    }
+
+    private fun restoreLatestRecording(): Boolean {
+        val recording = File(filesDir, "recordings/latest.wav")
+        if (recording.exists() && recording.length() > 44L) {
+            latestRecording = recording
+            updateProgress(70, "Restored latest recording")
+            updateExperimentSummary()
+            updateStatus("Restored recording: ${recording.absolutePath}")
+            return true
+        }
+        return false
     }
 
     private fun transcribeLatestRecording() {
@@ -174,13 +281,21 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        setBusy(true)
+        updateProgress(80, "Transcribing latest recording...")
         updateStatus("Transcribing ${recording.name}...")
         Thread {
             val result = runCatching { whisperEngine.transcribe(recording.absolutePath) }
             runOnUiThread {
-                result.onSuccess { transcriptText.text = it }
-                    .onFailure { transcriptText.text = "Transcription failed: ${it.message}" }
+                result.onSuccess {
+                    transcriptText.text = it
+                    updateProgress(100, "Transcription finished")
+                }.onFailure {
+                    transcriptText.text = "Transcription failed: ${it.message}"
+                    updateProgress(70, "Transcription failed")
+                }
                 updateStatus("Transcription finished.")
+                setBusy(false)
             }
         }.start()
     }
@@ -222,19 +337,31 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        setBusy(true)
+        updateProgress(75, "Benchmark starting...")
         Thread {
             val report = benchmarkRunner.benchmark(
                 audioFile = recording,
                 modelPath = selectedModelPath,
                 modelName = selectedModelName,
                 quantization = selectedQuantization,
+                audioLanguage = audioLanguage(),
                 loadTimeMs = latestLoadTimeMs,
-                repetitions = 3
+                repetitions = 3,
+                onProgress = { runIndex, totalRuns ->
+                    runOnUiThread {
+                        val progress = 75 + (runIndex - 1) * 20 / totalRuns
+                        updateProgress(progress, "Benchmark run $runIndex / $totalRuns")
+                    }
+                }
             )
             val exportFile = benchmarkRunner.exportCsv(report)
             runOnUiThread {
+                updateProgress(100, "Benchmark finished")
+                updateExperimentSummary()
                 metricsText.text = report.toDisplayText(exportFile)
                 updateStatus("Benchmark finished. CSV saved: ${exportFile.absolutePath}")
+                setBusy(false)
             }
         }.start()
     }
@@ -256,6 +383,37 @@ class MainActivity : AppCompatActivity() {
         statusText.text = message
     }
 
+    private fun updateProgress(progress: Int, detail: String) {
+        workflowProgress.progress = progress.coerceIn(0, 100)
+        progressDetailText.text = detail
+    }
+
+    private fun updateExperimentSummary() {
+        val modelSize = selectedModelPath
+            ?.let { File(it).takeIf(File::exists)?.length()?.toDouble()?.div(1024.0 * 1024.0) }
+            ?.let { "% .2f MB".format(it).trim() }
+            ?: "unknown"
+        val recording = latestRecording
+        val recordingSummary = if (recording != null && recording.exists()) {
+            "${recording.name}, ${"% .2f KB".format(recording.length() / 1024.0).trim()}"
+        } else {
+            "none"
+        }
+        experimentSummaryText.text = buildString {
+            appendLine("Model: $selectedModelName ($selectedQuantization, $modelSize)")
+            appendLine("Recording: $recordingSummary")
+            appendLine("Load time: ${latestLoadTimeMs?.toString() ?: "unknown"} ms")
+            append("Language: ${audioLanguage()}")
+        }
+    }
+
+    private fun setBusy(isBusy: Boolean) {
+        busyButtons.forEach { it.isEnabled = !isBusy }
+    }
+
+    private fun audioLanguage(): String =
+        audioLanguageInput.text?.toString()?.trim()?.ifBlank { "unknown" } ?: "unknown"
+
     private fun inferQuantization(value: String): String {
         val normalized = value.lowercase()
         return when {
@@ -271,5 +429,10 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val REQUEST_RECORD_AUDIO = 1001
         private const val REQUEST_MODEL_FILE = 1002
+        private const val EXTRA_MODEL_PATH = "model_path"
+        private const val EXTRA_MODEL_NAME = "model_name"
+        private const val EXTRA_AUTO_LOAD = "auto_load"
+        private const val EXTRA_AUTO_BENCHMARK = "auto_benchmark"
+        private const val EXTRA_AUDIO_LANGUAGE = "audio_language"
     }
 }

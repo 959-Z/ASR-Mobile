@@ -6,7 +6,7 @@ Use it for manual notes if the CSV cannot be pulled from the device immediately.
 ## CSV Header
 
 ```csv
-timestamp,run_index,device,android_version,abi,model_name,quantization,model_path,model_size_mb,audio_file,audio_duration_s,load_time_ms,inference_time_ms,rtf,java_heap_delta_mb,native_heap_delta_mb,transcript,quality_score,notes
+timestamp,run_index,device,android_version,abi,model_name,quantization,audio_language,model_path,model_size_mb,audio_file,audio_duration_s,load_time_ms,inference_time_ms,rtf,java_heap_delta_mb,native_heap_delta_mb,transcript,quality_score,notes
 ```
 
 ## Field Meaning
@@ -20,6 +20,7 @@ timestamp,run_index,device,android_version,abi,model_name,quantization,model_pat
 | abi | CPU ABI | e.g. `arm64-v8a` |
 | model_name | Human-readable model name | e.g. `Whisper Tiny` |
 | quantization | Quantization level inferred from filename | `Q8`, `Q5`, `Q4`, `FP16`, `unknown` |
+| audio_language | Spoken language of the test audio | e.g. `Chinese`, `English`, `French` |
 | model_path | Runtime model path | app storage path |
 | model_size_mb | Model file size | MB |
 | audio_file | Test audio file | filename |

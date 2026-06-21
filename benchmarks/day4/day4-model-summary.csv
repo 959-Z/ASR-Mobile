@@ -1,0 +1,5 @@
+model_name,quantization,audio_language,runs,model_size_mb,audio_duration_s,load_time_ms,avg_inference_time_ms,avg_rtf,avg_java_heap_delta_mb,avg_native_heap_delta_mb,transcript_preview
+ggml-base-q8_0.bin,Q8,Chinese,3,77.98,10.00,203,111234.33,11.123,-3.66,3.07,這是AS2 Mobile項目的第4天正式測試我們正在比較不同量化模型在華為手機上的離線語音識別速度和識別質量
+ggml-tiny-q5_1.bin,Q5,Chinese,3,30.66,10.00,253,108814.67,10.882,-3.60,2.67,这是AAS2模拔要项目的第四天正式测试我们正在比较不同两化模型在华为手机上的离线予因失别速度和失别治疗。
+ggml-tiny-q8_0.bin,Q8,Chinese,3,41.52,10.00,251,40064.67,4.006,-3.54,2.74,这是AIS2模包要项目的第四天正式测试我们正在比较不同量化模型在华为手机上的离线于音实别速度和实别资量
+ggml-tiny.bin,unknown,Chinese,3,74.09,10.00,400,8226.67,0.822,-3.53,3.51,这是AIS2模包要项目的第四天正式测试我们正在比较不同量化模型在华为手机上的离线于音实别速度和实别治量
