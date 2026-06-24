@@ -16,6 +16,8 @@ class AudioRecorder(private val context: Context) {
 
     fun recordBlocking(seconds: Int): File {
         val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
+        require(minBufferSize > 0) { "AudioRecord cannot get a valid buffer size: $minBufferSize" }
+
         val bufferSize = maxOf(minBufferSize, sampleRate * 2)
         val pcmData = ByteArray(sampleRate * seconds * 2)
 
@@ -27,14 +29,28 @@ class AudioRecorder(private val context: Context) {
             bufferSize
         )
 
-        var offset = 0
-        recorder.startRecording()
-        while (offset < pcmData.size) {
-            val read = recorder.read(pcmData, offset, pcmData.size - offset)
-            if (read > 0) offset += read
+        require(recorder.state == AudioRecord.STATE_INITIALIZED) {
+            "AudioRecord failed to initialize."
         }
-        recorder.stop()
-        recorder.release()
+
+        var offset = 0
+        val deadline = System.currentTimeMillis() + seconds * 1000L + 3000L
+        try {
+            recorder.startRecording()
+            while (offset < pcmData.size && System.currentTimeMillis() < deadline) {
+                val read = recorder.read(pcmData, offset, pcmData.size - offset)
+                when {
+                    read > 0 -> offset += read
+                    read == 0 -> Thread.sleep(10)
+                    else -> error("AudioRecord read failed with code $read")
+                }
+            }
+        } finally {
+            runCatching { recorder.stop() }
+            recorder.release()
+        }
+
+        require(offset > 0) { "No audio data was recorded." }
 
         val dir = File(context.filesDir, "recordings").apply { mkdirs() }
         val wavFile = File(dir, "latest.wav")
