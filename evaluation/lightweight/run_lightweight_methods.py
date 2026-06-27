@@ -99,7 +99,7 @@ def set_seed(seed: int) -> None:
 
 
 def load_samples(sample_limit: int = 0) -> List[Sample]:
-    audio_dir = PROJECT_ROOT / "model_benchmark" / "test_audio"
+    audio_dir = PROJECT_ROOT / "evaluation" / "pc_benchmark" / "test_audio"
     samples: List[Sample] = []
     for lang, lang_name, label, expected in TEST_PHRASES:
         path = audio_dir / f"{lang}_{label}.wav"

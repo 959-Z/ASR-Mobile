@@ -10,11 +10,11 @@ The PC benchmark is used as a model screening step. It is not a replacement for 
 
 - Runtime: `whisper-cli.exe` built from the project `whisper.cpp` dependency.
 - Model directory: `models/`.
-- Test audio: 9 short WAV files in `model_benchmark/test_audio/`.
+- Test audio: 9 short WAV files in `evaluation/pc_benchmark/test_audio/`.
 - Languages: English x 3, Chinese x 3, French x 3.
 - Runs: 1 warmup run and 3 measured runs per audio sample.
 - Metrics: model size, loading time, inference time, RTF, memory delta, and text accuracy.
-- Output files: `model_benchmark/benchmark_results.csv`, `benchmark_report.txt`, and comparison plots.
+- Output files: `evaluation/pc_benchmark/benchmark_results.csv`, `benchmark_report.txt`, and comparison plots.
 
 On Windows, the benchmark uses the ASCII junction `D:\asr-mobile-bench` to avoid `whisper-cli` model loading failures caused by non-ASCII project paths.
 

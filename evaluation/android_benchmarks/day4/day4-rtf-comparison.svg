@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="338" viewBox="0 0 960 338">
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="32" y="38" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#111827">Day 4 Average RTF Comparison</text>
+<text x="32" y="93" font-family="Arial, sans-serif" font-size="16" fill="#111827">ggml-tiny.bin</text>
+<rect x="220" y="70" width="620" height="34" fill="#EEF2F7" rx="4"/>
+<rect x="220" y="70" width="45.82" height="34" fill="#246BFE" rx="4"/>
+<text x="277.82" y="93" font-family="Arial, sans-serif" font-size="15" fill="#374151">0.822</text>
+<text x="32" y="145" font-family="Arial, sans-serif" font-size="16" fill="#111827">ggml-tiny-q8_0.bin</text>
+<rect x="220" y="122" width="620" height="34" fill="#EEF2F7" rx="4"/>
+<rect x="220" y="122" width="223.30" height="34" fill="#1F9D78" rx="4"/>
+<text x="455.30" y="145" font-family="Arial, sans-serif" font-size="15" fill="#374151">4.006</text>
+<text x="32" y="197" font-family="Arial, sans-serif" font-size="16" fill="#111827">ggml-tiny-q5_1.bin</text>
+<rect x="220" y="174" width="620" height="34" fill="#EEF2F7" rx="4"/>
+<rect x="220" y="174" width="606.57" height="34" fill="#D9822B" rx="4"/>
+<text x="838.57" y="197" font-family="Arial, sans-serif" font-size="15" fill="#374151">10.882</text>
+<text x="32" y="249" font-family="Arial, sans-serif" font-size="16" fill="#111827">ggml-base-q8_0.bin</text>
+<rect x="220" y="226" width="620" height="34" fill="#EEF2F7" rx="4"/>
+<rect x="220" y="226" width="620.00" height="34" fill="#7C3AED" rx="4"/>
+<text x="852.00" y="249" font-family="Arial, sans-serif" font-size="15" fill="#374151">11.123</text>
+</svg>

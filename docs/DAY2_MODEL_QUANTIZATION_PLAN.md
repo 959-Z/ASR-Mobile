@@ -122,4 +122,3 @@ The original model family comes from OpenAI Whisper. The Android-compatible GGML
 | `Pomni/whisper-base-ggml-allquants` | base Q4 |
 
 The `Pomni` allquants repositories are used only to fill the Q4 variants that are not present in the selected `ggerganov/whisper.cpp` file set.
-

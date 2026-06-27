@@ -80,7 +80,7 @@ def find_runtime_project_root():
 
 RUNTIME_PROJECT_ROOT = find_runtime_project_root()
 MODELS_DIR = RUNTIME_PROJECT_ROOT / "models"
-OUTPUT_DIR = RUNTIME_PROJECT_ROOT / "model_benchmark"
+OUTPUT_DIR = RUNTIME_PROJECT_ROOT / "evaluation" / "pc_benchmark"
 
 def find_whisper_cli():
     candidates = []
@@ -228,7 +228,7 @@ def generate_test_audio(output_dir):
     except ImportError as e:
         raise RuntimeError(
             "Some test audio files are missing, and gTTS/pydub are not installed. "
-            "Install them or restore model_benchmark/test_audio/*.wav."
+            "Install them or restore evaluation/pc_benchmark/test_audio/*.wav."
         ) from e
 
     for lang, lang_name, label, text in missing:

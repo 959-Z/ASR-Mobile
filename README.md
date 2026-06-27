@@ -42,7 +42,7 @@ ASR Mobile/
 ├── android/                 # Android/Kotlin/NDK scaffold
 ├── docs/                    # Architecture and deployment notes
 ├── models/                  # Whisper.cpp GGML/GGUF model files
-├── model_benchmark/         # PC benchmark suite & results
+├── evaluation/pc_benchmark/ # PC benchmark suite & results
 ├── model_eval/              # Python evaluation scripts & results
 ├── samples/                 # Local sample audio placeholder; audio files ignored by Git
 ├── scripts/                 # Safe helper scripts; no model downloads
