@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 ROOT = Path(__file__).resolve().parents[1]
-OUT_DIR = ROOT / "model_benchmark"
+OUT_DIR = ROOT / "evaluation" / "pc_benchmark"
 
 
 def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:

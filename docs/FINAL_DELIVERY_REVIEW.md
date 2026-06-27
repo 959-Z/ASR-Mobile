@@ -41,7 +41,7 @@ The quantization and compression work serves this larger goal: finding a practic
 - Four models completed formal benchmark successfully.
 - `tiny-q4_0`, `base-q4_0`, and `base-q5_1` timed out and timeout evidence was saved.
 - Summary CSV files were generated.
-- Formal summary was written in `benchmarks/day4/DAY4_CHINESE_FORMAL_SUMMARY.md`.
+- Formal summary was written in `evaluation/android_benchmarks/day4/DAY4_CHINESE_FORMAL_SUMMARY.md`.
 
 ### Day 5: Analysis And Report Material
 
@@ -73,7 +73,7 @@ The quantization and compression work serves this larger goal: finding a practic
 | `ggml-tiny-q5_1.bin` | 0.283 | 0.239 | 4/5 |
 | `ggml-base-q8_0.bin` | 0.358 | 0.413 | 3/5 |
 
-The scoring output is stored in `benchmarks/day4/day4-quality-analysis.csv`. CER uses normalized character edit distance; WER uses Chinese-character and English-word token edit distance.
+The scoring output is stored in `evaluation/android_benchmarks/day4/day4-quality-analysis.csv`. CER uses normalized character edit distance; WER uses Chinese-character and English-word token edit distance.
 
 ## Final Recommendation
 
@@ -105,13 +105,13 @@ Reason:
 
 Recommended figures for the report or PPT:
 
-- `model_benchmark/method_comparison.png`
-- `model_benchmark/pruning_tradeoff.png`
-- `model_benchmark/accuracy_comparison.png`
-- `model_benchmark/speed_comparison.png`
-- `model_benchmark/resource_comparison.png`
-- `benchmarks/day4/day4-size-comparison.svg`
-- `benchmarks/day4/day4-rtf-comparison.svg`
+- `evaluation/pc_benchmark/method_comparison.png`
+- `evaluation/pc_benchmark/pruning_tradeoff.png`
+- `evaluation/pc_benchmark/accuracy_comparison.png`
+- `evaluation/pc_benchmark/speed_comparison.png`
+- `evaluation/pc_benchmark/resource_comparison.png`
+- `evaluation/android_benchmarks/day4/day4-size-comparison.svg`
+- `evaluation/android_benchmarks/day4/day4-rtf-comparison.svg`
 
 ## Remaining Tasks
 
@@ -131,12 +131,12 @@ Key files for final reporting:
 - `docs/QUANTIZATION_COMPRESSION_WORK_PLAN.md`
 - `docs/DAY2_ANDROID_MODEL_VALIDATION.md`
 - `docs/DAY4_BENCHMARK_PREPARATION.md`
-- `benchmarks/day4/DAY4_CHINESE_FORMAL_SUMMARY.md`
-- `benchmarks/day4/day4-model-summary.csv`
-- `benchmarks/day4/day4-all-runs.csv`
-- `benchmarks/day4/day4-quality-analysis.csv`
-- `benchmarks/day4/day4-size-comparison.svg`
-- `benchmarks/day4/day4-rtf-comparison.svg`
+- `evaluation/android_benchmarks/day4/DAY4_CHINESE_FORMAL_SUMMARY.md`
+- `evaluation/android_benchmarks/day4/day4-model-summary.csv`
+- `evaluation/android_benchmarks/day4/day4-all-runs.csv`
+- `evaluation/android_benchmarks/day4/day4-quality-analysis.csv`
+- `evaluation/android_benchmarks/day4/day4-size-comparison.svg`
+- `evaluation/android_benchmarks/day4/day4-rtf-comparison.svg`
 
 ## Important Caveat
 

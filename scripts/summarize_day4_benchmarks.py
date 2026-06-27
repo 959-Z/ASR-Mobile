@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-INPUT_DIR = ROOT / "benchmarks" / "day4"
+INPUT_DIR = ROOT / "evaluation" / "android_benchmarks" / "day4"
 RUNS_OUTPUT = INPUT_DIR / "day4-all-runs.csv"
 SUMMARY_OUTPUT = INPUT_DIR / "day4-model-summary.csv"
 

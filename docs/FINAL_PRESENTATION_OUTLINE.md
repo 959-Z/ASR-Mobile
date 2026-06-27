@@ -74,13 +74,13 @@ Use this table:
 
 Suggested figures:
 
-- `model_benchmark/method_comparison.png`
-- `model_benchmark/pruning_tradeoff.png`
-- `model_benchmark/accuracy_comparison.png`
-- `model_benchmark/speed_comparison.png`
-- `model_benchmark/resource_comparison.png`
-- `benchmarks/day4/day4-size-comparison.svg`
-- `benchmarks/day4/day4-rtf-comparison.svg`
+- `evaluation/pc_benchmark/method_comparison.png`
+- `evaluation/pc_benchmark/pruning_tradeoff.png`
+- `evaluation/pc_benchmark/accuracy_comparison.png`
+- `evaluation/pc_benchmark/speed_comparison.png`
+- `evaluation/pc_benchmark/resource_comparison.png`
+- `evaluation/android_benchmarks/day4/day4-size-comparison.svg`
+- `evaluation/android_benchmarks/day4/day4-rtf-comparison.svg`
 
 Quality table:
 

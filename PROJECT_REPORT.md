@@ -1,20 +1,32 @@
 # ASR Mobile Project Report
 
-## 1. Problem statement
+## 1. Problem Statement
 
-This project studies how to deploy Automatic Speech Recognition (ASR) models on Android mobile devices. The target is local/on-device inference so that speech can be transcribed without sending audio to a cloud server.
+This project studies Android offline Automatic Speech Recognition (ASR). The goal is to run speech transcription locally on a mobile device without sending audio to a cloud service. The main technical challenge is that Whisper-style ASR models are accurate but expensive for mobile deployment, where storage, memory, latency, battery, and CPU throughput are limited.
 
-## 2. Motivation
+## 2. Research Questions
 
-Mobile ASR is useful for note taking, accessibility, language learning, meeting transcription, and privacy-sensitive applications. Compared with server-side ASR, mobile deployment must balance accuracy, latency, memory, battery, model size, and device compatibility.
+The project focuses on three questions:
 
-## 3. Related baseline
+1. Which Whisper model scale is practical for Android offline ASR?
+2. How much can quantization reduce model size and runtime cost while preserving recognition quality?
+3. Can other lightweight methods, such as distillation and pruning, improve or complement quantization?
 
-The course repository includes a desktop ASR script at [../machine_learning_2026_spring/session-402-audio-whisper-tts/whisper_audio_to_txt.py](../machine_learning_2026_spring/session-402-audio-whisper-tts/whisper_audio_to_txt.py). It uses `faster_whisper`, supports several Whisper model sizes, and can serve as a desktop quality/latency baseline.
+## 3. Related Work and Motivation
 
-For Android deployment, this project uses a native mobile direction based on `whisper.cpp`, because Python `faster_whisper` is not directly suitable for packaging into an Android app.
+Whisper provides strong multilingual ASR performance through large-scale weak supervision, making it a suitable baseline for English, Chinese, and French recognition. However, mobile deployment requires compression and runtime optimization.
 
-## 4. System architecture
+The main lightweight directions considered in this project are:
+
+- Architecture scaling: using smaller Whisper variants such as `tiny` instead of `base`.
+- Post-training quantization: using Q8/Q5/Q4 GGML models supported by whisper.cpp.
+- Knowledge distillation: transferring teacher model behavior into a smaller student model.
+- Pruning: removing low-importance weights and testing whether sparse models preserve quality.
+- Training-based compression recovery: fine-tuning compressed models to recover lost quality.
+
+This project chooses whisper.cpp as the Android runtime because it is C/C++ based, integrates with Android NDK/JNI, and supports GGML quantized models. Python-based desktop runtimes such as faster-whisper and CTranslate2 are important references, but they are less direct for a simple Android app package.
+
+## 4. System Architecture
 
 ```text
 Android UI
@@ -26,43 +38,55 @@ Android UI
   -> transcript and benchmark metrics
 ```
 
-## 5. Mobile constraints
+The current Android deployment path uses local model files and native inference. Model selection and compression are evaluated on PC first, then passed to Android validation.
 
-Key constraints to evaluate:
+## 5. Lightweight Methods Implemented
 
-- Model size: affects APK/storage size and loading time.
-- CPU performance: many phones do not have laptop-class CPU throughput.
-- Memory: ASR models can exceed practical RAM budgets.
-- Battery: long inference may drain battery.
-- Latency: interactive ASR needs low real-time factor.
-- Offline privacy: no internet permission is requested by the base app.
-- Multilingual recognition: English, French, and Chinese should be tested if suitable models/audio are available.
+| Method | Implementation | Role |
+|---|---|---|
+| Architecture scaling | `tiny` vs `base` | Compares smaller architecture against larger model capacity |
+| GGML quantization | baseline/Q8/Q5/Q4 for `tiny` and `base` | Main Android deployment path |
+| Pseudo-label distillation | `openai/whisper-base` teacher -> `openai/whisper-tiny` student | Tests training-based compression |
+| Magnitude pruning | 10%, 20%, 30% Linear-layer pruning | Tests sparse compression feasibility |
+| Pruning recovery | 20% pruning + short recovery fine-tuning | Tests whether training can recover pruned quality |
 
-## 6. Chosen deployment strategy
+## 6. PC Quantization Experiment
 
-The runtime is `whisper.cpp` with GGML Whisper models. It is C/C++ based, works with Android NDK/JNI, and supports CPU-only inference.
+The PC quantization experiment tested 8 GGML models on 9 short audio files across English, Chinese, and French.
 
-The project evaluates both a baseline tiny model and quantized tiny/base variants. Quantization is used as the main compression method because it can reduce model size without retraining, which is practical for a short mobile deployment project.
+| Model | Size MB | Load ms | Inference ms | RTF | Accuracy |
+|---|---:|---:|---:|---:|---:|
+| Tiny baseline | 74.09 | 399 | 712 | 0.37 | 83.2% |
+| Tiny Q8_0 | 41.52 | 367 | 599 | 0.31 | 83.2% |
+| Tiny Q5_1 | 30.66 | 422 | 792 | 0.40 | 83.2% |
+| Tiny Q4_0 | 24.15 | 294 | 525 | 0.27 | 90.1% |
+| Base baseline | 141.10 | 867 | 1692 | 0.87 | 92.9% |
+| Base Q8_0 | 77.98 | 629 | 1205 | 0.62 | 92.9% |
+| Base Q5_1 | 56.94 | 781 | 1541 | 0.79 | 92.9% |
+| Base Q4_0 | 44.32 | 542 | 1087 | 0.56 | 98.4% |
 
-## 7. Benchmark methodology
+The PC benchmark suggests that `ggml-tiny-q4_0.bin` and `ggml-base-q4_0.bin` are attractive candidates because they are small and fast on desktop screening. This screening result is useful, but it must be checked on Android because CPU kernels, JNI overhead, memory behavior, and mobile scheduling can change the ranking.
 
-Measure:
+## 7. Distillation, Pruning, and Training Compression Experiment
 
-- device model and Android version
-- CPU ABI
-- model filename and size
-- audio duration
-- model load time
-- transcription time
-- real-time factor = transcription time / audio duration
-- approximate Java and native memory use
-- transcript quality notes
+A second GPU-side experiment was added to test lightweight methods beyond quantization. The experiment used an NVIDIA GeForce RTX 4060 Laptop GPU, `openai/whisper-base` as teacher, `openai/whisper-tiny` as student, and the same 9 local benchmark audio files.
 
-Use [BENCHMARKING.md](BENCHMARKING.md) for the detailed procedure.
+| Method | Accuracy | Latency ms | RTF | Dense size MB | Linear sparsity |
+|---|---:|---:|---:|---:|---:|
+| distilled-tiny | 92.9% | 41 | 0.02 | 72.0 | 0.0% |
+| pruned-20-recovery | 90.1% | 43 | 0.02 | 72.0 | 20.0% |
+| pruned-10 | 89.2% | 86 | 0.04 | 72.0 | 10.0% |
+| pruned-20 | 86.9% | 111 | 0.06 | 72.0 | 20.0% |
+| tiny-baseline | 83.2% | 94 | 0.05 | 72.0 | 0.0% |
+| pruned-30 | 80.7% | 122 | 0.06 | 72.0 | 30.0% |
 
-## 8. Formal Android benchmark results
+The distillation result suggests that teacher-generated pseudo labels can improve the small student on the controlled benchmark. Pruning alone gives a visible quality trade-off: 10% and 20% pruning remain usable, while 30% pruning lowers accuracy more clearly. Recovery fine-tuning after 20% pruning improves the pruned model, showing that training-based compression can recover part of the lost quality.
 
-Formal Chinese benchmark setup:
+The main negative result is also important: unstructured pruning does not automatically reduce dense checkpoint size or guarantee speedup. Without sparse kernels or structured pruning support, pruning is less deployment-ready than GGML quantization for Android.
+
+## 8. Android Benchmark Method
+
+The Android benchmark validates whether PC-screened models actually work on a phone.
 
 | Field | Value |
 |---|---|
@@ -70,9 +94,16 @@ Formal Chinese benchmark setup:
 | Android | 12 |
 | ABI | arm64-v8a |
 | Audio | 10-second Chinese recording |
-| Repetitions | 3 per model |
+| Repetitions | 3 per completed model |
 
-Results:
+Recommended Android validation order from the PC screening was:
+
+1. `ggml-tiny-q4_0.bin`
+2. `ggml-base-q4_0.bin`
+3. `ggml-base-q8_0.bin`
+4. `ggml-tiny-q8_0.bin`
+
+## 9. Formal Android Benchmark Results
 
 | Model | Quantization | Size MB | Load ms | Avg inference ms | Avg RTF | Result |
 |---|---|---:|---:|---:|---:|---|
@@ -84,22 +115,11 @@ Results:
 | `ggml-base-q4_0.bin` | Q4 | 44.32 | 137 in Day 2 loading validation | timeout | timeout | timeout |
 | `ggml-base-q5_1.bin` | Q5 | 56.94 | unknown | timeout | timeout | timeout |
 
-The detailed results are stored in [benchmarks/day4/DAY4_CHINESE_FORMAL_SUMMARY.md](benchmarks/day4/DAY4_CHINESE_FORMAL_SUMMARY.md).
+The detailed Android benchmark results are stored in [evaluation/android_benchmarks/day4/DAY4_CHINESE_FORMAL_SUMMARY.md](evaluation/android_benchmarks/day4/DAY4_CHINESE_FORMAL_SUMMARY.md).
 
-## 9. Analysis
+## 10. Android Recognition Quality
 
-The tiny quantized models reduced file size substantially:
-
-| Model | Size MB | Size vs tiny baseline | Reduction |
-|---|---:|---:|---:|
-| `ggml-tiny.bin` | 74.09 | 100.00% | 0.00% |
-| `ggml-tiny-q8_0.bin` | 41.52 | 56.04% | 43.96% |
-| `ggml-tiny-q5_1.bin` | 30.66 | 41.38% | 58.62% |
-| `ggml-tiny-q4_0.bin` | 24.15 | 32.60% | 67.40% |
-
-However, quantization did not improve speed on the tested Huawei phone. The baseline `ggml-tiny.bin` was the only model with RTF < 1, meaning it completed transcription faster than real time. The quantized models were smaller but slower in this Android setup.
-
-Recognition quality was evaluated with CER and WER against the Chinese reference sentence:
+Recognition quality was evaluated with CER and WER against the Chinese reference sentence.
 
 | Model | CER | WER | Quality score |
 |---|---:|---:|---:|
@@ -108,11 +128,15 @@ Recognition quality was evaluated with CER and WER against the Chinese reference
 | `ggml-tiny-q5_1.bin` | 0.283 | 0.239 | 4/5 |
 | `ggml-base-q8_0.bin` | 0.358 | 0.413 | 3/5 |
 
-CER uses normalized character-level edit distance. WER uses a token sequence where Chinese characters are treated as individual tokens and English/numeric spans are treated as word tokens. The full scoring output is stored in [benchmarks/day4/day4-quality-analysis.csv](benchmarks/day4/day4-quality-analysis.csv).
+CER uses normalized character-level edit distance. WER uses a token sequence where Chinese characters are treated as individual tokens and English/numeric spans are treated as word tokens. The full scoring output is stored in [evaluation/android_benchmarks/day4/day4-quality-analysis.csv](evaluation/android_benchmarks/day4/day4-quality-analysis.csv).
 
-This result is important because it shows that model compression does not automatically produce faster mobile inference. The actual deployment result depends on the native backend, quantized kernel support, ARM CPU behavior, memory access patterns, and device scheduling.
+## 11. Analysis
 
-## 10. Final recommendation
+The PC benchmark and Android benchmark lead to different conclusions. On PC, Q4 models looked strong because they were smaller and fast. On the Huawei Android device, the Q4 models loaded but timed out in the formal benchmark, while Q8/Q5 completed but were much slower than the tiny baseline.
+
+This result is important because model compression does not automatically produce faster mobile inference. The actual deployment result depends on the native backend, quantized kernel support, ARM CPU behavior, memory access patterns, JNI integration, and device scheduling.
+
+## 12. Final Recommendation
 
 For the current ASR-Mobile Android deployment, the recommended model is:
 
@@ -129,29 +153,33 @@ Reasons:
 
 The quantized models should still be included in the report as compression experiments. They demonstrate clear size reduction and reveal the real trade-off between smaller files and actual mobile runtime performance.
 
-## 11. Limitations
+## 13. Limitations
 
-- Formal benchmark currently covers one Android phone and one Chinese recording.
-- English and French formal runs are not completed yet.
-- Streaming transcription is not implemented.
+- The PC benchmark uses 9 short, clean audio files, so the results show trends rather than production-level accuracy.
+- GPU-side distillation and pruning results do not directly represent Android CPU performance.
+- The distillation experiment is small-scale pseudo-label distillation, not a full reproduction of Distil-Whisper.
+- Pruning is unstructured magnitude pruning and does not reduce dense model size without sparse storage or sparse kernels.
+- Formal Android benchmark currently covers one Android phone and one Chinese recording.
 - Q4 models loaded successfully in Android validation, but `tiny-q4_0` and `base-q4_0` timed out during supplemental formal benchmark.
 - `base-q5_1` loaded successfully in Android validation, but timed out during formal benchmark.
 - CER/WER scoring is currently available for the Chinese formal recording only.
 
-## 12. Future work
+## 14. Future Work
 
-- Streaming ASR instead of full-file transcription.
-- Voice activity detection before ASR.
-- Noise reduction preprocessing.
-- More complete English/French/Chinese benchmark set.
-- CER/WER-based quality scoring for English and French recordings.
-- Android native backend tuning, including thread count and ARM quantized kernel behavior.
-- ONNX Runtime Mobile comparison.
-- RAG or LLM post-processing for transcript correction and summarization.
+- Expand the Android benchmark to English/French recordings and longer/noisier real microphone recordings.
+- Add CER/WER-based quality scoring for English and French recordings.
+- Convert the best distilled/pruned checkpoint to GGUF/GGML and test whether it remains compatible with whisper.cpp.
+- Explore structured pruning or layer dropping, which may be more useful for dense mobile runtimes.
+- Combine distillation with quantization-aware training for a stronger compression pipeline.
+- Tune Android native backend settings, including thread count and ARM quantized kernel behavior.
+- Add streaming ASR instead of full-file transcription.
 
-## 13. References
+## 15. References
 
-- Whisper / Whisper model family
-- whisper.cpp mobile inference runtime
-- Android AudioRecord and Android NDK/JNI documentation
-- The course Project.md requirements
+- Whisper: https://arxiv.org/abs/2212.04356
+- Distil-Whisper: https://arxiv.org/abs/2311.00430
+- DQ-Whisper / Whisper-KDQ: https://arxiv.org/html/2305.10788v2
+- CTranslate2 quantization: https://opennmt.net/CTranslate2/quantization.html
+- CTranslate2 runtime optimizations: https://github.com/OpenNMT/CTranslate2
+- Model compression survey: https://pmc.ncbi.nlm.nih.gov/articles/PMC11965593/
+- Whisper pruning/adaptation reference: https://aclanthology.org/2023.mrl-1.7.pdf

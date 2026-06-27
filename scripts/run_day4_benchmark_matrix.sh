@@ -6,7 +6,7 @@ AUDIO_LANGUAGE="${2:-Chinese}"
 MODEL_SELECTION="${3:-core}"
 TIMEOUT_S="${4:-300}"
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-OUTPUT_DIR="$ROOT_DIR/benchmarks/day4"
+OUTPUT_DIR="$ROOT_DIR/evaluation/android_benchmarks/day4"
 APP_MODEL_DIR="/data/user/0/$PACKAGE_NAME/files/models"
 
 CORE_MODELS=(

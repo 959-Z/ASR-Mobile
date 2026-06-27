@@ -1,0 +1,388 @@
+============================================================
+  ASR Mobile — 模型基准测试报告
+============================================================
+  时间: 2026-06-26 20:41
+  主机: 饮冰室
+  CPU:  Intel64 Family 6 Model 183 Stepping 1, GenuineIntel
+  系统: Windows 10
+  Python: 3.9.21
+  whisper-cli: D:\asr-mobile-bench\android\app\src\main\cpp\third_party\whisper.cpp\build\bin\whisper-cli.exe
+
+------------------------------------------------------------
+  Overall ranking
+------------------------------------------------------------
+  1.  Base Q4_0
+      综合得分: 80.7%
+      准确率:   98.4%
+      推理速度: 1087 ms
+      模型大小: 44 MB
+
+  2.  Tiny Q4_0
+      综合得分: 67.1%
+      准确率:   90.1%
+      推理速度: 525 ms
+      模型大小: 24 MB
+
+  3.  Base Q8_0
+      综合得分: 54.8%
+      准确率:   92.9%
+      推理速度: 1205 ms
+      模型大小: 78 MB
+
+  4.  Base Q5_1
+      综合得分: 43.2%
+      准确率:   92.9%
+      推理速度: 1541 ms
+      模型大小: 57 MB
+
+  5.  Base baseline
+      综合得分: 38.1%
+      准确率:   92.9%
+      推理速度: 1691 ms
+      模型大小: 141 MB
+
+  6.  Tiny Q8_0
+      综合得分: 37.5%
+      准确率:   83.2%
+      推理速度: 599 ms
+      模型大小: 42 MB
+
+  7.  Tiny baseline
+      综合得分: 33.6%
+      准确率:   83.2%
+      推理速度: 712 ms
+      模型大小: 74 MB
+
+  8.  Tiny Q5_1
+      综合得分: 30.8%
+      准确率:   83.2%
+      推理速度: 792 ms
+      模型大小: 31 MB
+
+------------------------------------------------------------
+  Detailed Results
+------------------------------------------------------------
+
+  ▶ Base Q4_0
+    文件: ggml-base-q4_0.bin  (44 MB)
+    加载时间: 542 ms
+    平均推理: 1087 ms
+    平均 RTF: 0.562
+    平均准确率: 98.4%
+    推理内存增量: 0.0 MB
+    English: 100.0%
+    Chinese: 95.2%
+    French: 100.0%
+
+    Per-phrase results:
+      + [English] Greeting     -> acc=100%    1663ms  RTF=0.92
+             Expected: How are you doing today
+             Got:      How are you doing today?
+      + [English] Weather      -> acc=100%    1004ms  RTF=0.39
+             Expected: The weather is very nice outside
+             Got:      the weather is very nice outside.
+      + [English] Order        -> acc=100%    1022ms  RTF=0.49
+             Expected: I would like a cup of coffee
+             Got:      I would like a cup of coffee.
+      + [Chinese] Greeting_zh  -> acc=100%    1041ms  RTF=0.38
+             Expected: 你好今天天气怎么样
+             Got:      你好今天天气怎么样?
+      + [Chinese] Order_zh     -> acc= 86%    1046ms  RTF=0.44
+             Expected: 我想订一杯咖啡
+             Got:      我想定一杯咖啡。
+      + [Chinese] Thanks       -> acc=100%    1008ms  RTF=0.53
+             Expected: 谢谢你的帮助
+             Got:      谢谢你的帮助!
+      + [French] Salutation   -> acc=100%    1003ms  RTF=0.61
+             Expected: Bonjour comment allez vous
+             Got:      Bonjour, comment allez-vous ?
+      + [French] Commande     -> acc=100%     999ms  RTF=0.64
+             Expected: Je voudrais un cafe
+             Got:      Je voudrais un café.
+      + [French] Thanks_fr    -> acc=100%     999ms  RTF=0.64
+             Expected: Merci pour votre aide
+             Got:      Merci pour votre aide.
+
+  ▶ Tiny Q4_0
+    文件: ggml-tiny-q4_0.bin  (24 MB)
+    加载时间: 294 ms
+    平均推理: 525 ms
+    平均 RTF: 0.271
+    平均准确率: 90.1%
+    推理内存增量: 0.0 MB
+    English: 100.0%
+    Chinese: 78.6%
+    French: 91.7%
+
+    Per-phrase results:
+      + [English] Greeting     -> acc=100%     541ms  RTF=0.30
+             Expected: How are you doing today
+             Got:      How are you doing today?
+      + [English] Weather      -> acc=100%     518ms  RTF=0.20
+             Expected: The weather is very nice outside
+             Got:      The weather is very nice outside.
+      + [English] Order        -> acc=100%     528ms  RTF=0.25
+             Expected: I would like a cup of coffee
+             Got:      I would like a cup of coffee.
+      + [Chinese] Greeting_zh  -> acc=100%     514ms  RTF=0.19
+             Expected: 你好今天天气怎么样
+             Got:      你好今天天气怎么样
+      + [Chinese] Order_zh     -> acc= 86%     535ms  RTF=0.23
+             Expected: 我想订一杯咖啡
+             Got:      我想訂一杯咖啡
+      + [Chinese] Thanks       -> acc= 50%     512ms  RTF=0.27
+             Expected: 谢谢你的帮助
+             Got:      謝謝你的幫助
+      + [French] Salutation   -> acc=100%     524ms  RTF=0.32
+             Expected: Bonjour comment allez vous
+             Got:      Bonjour comment allez-vous?
+      + [French] Commande     -> acc= 75%     535ms  RTF=0.34
+             Expected: Je voudrais un cafe
+             Got:      Je voudrais en café.
+      + [French] Thanks_fr    -> acc=100%     518ms  RTF=0.33
+             Expected: Merci pour votre aide
+             Got:      Merci pour votre aide.
+
+  ▶ Base Q8_0
+    文件: ggml-base-q8_0.bin  (78 MB)
+    加载时间: 629 ms
+    平均推理: 1205 ms
+    平均 RTF: 0.622
+    平均准确率: 92.9%
+    推理内存增量: -0.0 MB
+    English: 100.0%
+    Chinese: 78.6%
+    French: 100.0%
+
+    Per-phrase results:
+      + [English] Greeting     -> acc=100%    1179ms  RTF=0.65
+             Expected: How are you doing today
+             Got:      How are you doing today?
+      + [English] Weather      -> acc=100%    1205ms  RTF=0.47
+             Expected: The weather is very nice outside
+             Got:      The weather is very nice outside.
+      + [English] Order        -> acc=100%    1211ms  RTF=0.58
+             Expected: I would like a cup of coffee
+             Got:      I would like a cup of coffee.
+      + [Chinese] Greeting_zh  -> acc=100%    1183ms  RTF=0.43
+             Expected: 你好今天天气怎么样
+             Got:      你好今天天气怎么样?
+      + [Chinese] Order_zh     -> acc= 86%    1213ms  RTF=0.52
+             Expected: 我想订一杯咖啡
+             Got:      我想定一杯咖啡。
+      + [Chinese] Thanks       -> acc= 50%    1181ms  RTF=0.62
+             Expected: 谢谢你的帮助
+             Got:      謝謝你的幫助
+      + [French] Salutation   -> acc=100%    1257ms  RTF=0.77
+             Expected: Bonjour comment allez vous
+             Got:      Bonjour, comment allez-vous ?
+      + [French] Commande     -> acc=100%    1217ms  RTF=0.78
+             Expected: Je voudrais un cafe
+             Got:      Je voudrais un café.
+      + [French] Thanks_fr    -> acc=100%    1201ms  RTF=0.77
+             Expected: Merci pour votre aide
+             Got:      Merci pour votre aide.
+
+  ▶ Base Q5_1
+    文件: ggml-base-q5_1.bin  (57 MB)
+    加载时间: 781 ms
+    平均推理: 1541 ms
+    平均 RTF: 0.793
+    平均准确率: 92.9%
+    推理内存增量: 0.0 MB
+    English: 100.0%
+    Chinese: 78.6%
+    French: 100.0%
+
+    Per-phrase results:
+      + [English] Greeting     -> acc=100%    1542ms  RTF=0.86
+             Expected: How are you doing today
+             Got:      How are you doing today?
+      + [English] Weather      -> acc=100%    1547ms  RTF=0.61
+             Expected: The weather is very nice outside
+             Got:      The weather is very nice outside.
+      + [English] Order        -> acc=100%    1558ms  RTF=0.75
+             Expected: I would like a cup of coffee
+             Got:      I would like a cup of coffee.
+      + [Chinese] Greeting_zh  -> acc=100%    1548ms  RTF=0.56
+             Expected: 你好今天天气怎么样
+             Got:      你好今天天气怎么样?
+      + [Chinese] Order_zh     -> acc= 86%    1572ms  RTF=0.67
+             Expected: 我想订一杯咖啡
+             Got:      我想定一杯咖啡。
+      + [Chinese] Thanks       -> acc= 50%    1504ms  RTF=0.79
+             Expected: 谢谢你的帮助
+             Got:      謝謝你的幫助
+      + [French] Salutation   -> acc=100%    1550ms  RTF=0.95
+             Expected: Bonjour comment allez vous
+             Got:      Bonjour, comment allez-vous ?
+      + [French] Commande     -> acc=100%    1531ms  RTF=0.98
+             Expected: Je voudrais un cafe
+             Got:      Je voudrais un café.
+      + [French] Thanks_fr    -> acc=100%    1520ms  RTF=0.97
+             Expected: Merci pour votre aide
+             Got:      Merci pour votre aide.
+
+  ▶ Base baseline
+    文件: ggml-base.bin  (141 MB)
+    加载时间: 867 ms
+    平均推理: 1691 ms
+    平均 RTF: 0.869
+    平均准确率: 92.9%
+    推理内存增量: 0.0 MB
+    English: 100.0%
+    Chinese: 78.6%
+    French: 100.0%
+
+    Per-phrase results:
+      + [English] Greeting     -> acc=100%    1672ms  RTF=0.93
+             Expected: How are you doing today
+             Got:      How are you doing today?
+      + [English] Weather      -> acc=100%    1717ms  RTF=0.67
+             Expected: The weather is very nice outside
+             Got:      The weather is very nice outside.
+      + [English] Order        -> acc=100%    1626ms  RTF=0.78
+             Expected: I would like a cup of coffee
+             Got:      I would like a cup of coffee.
+      + [Chinese] Greeting_zh  -> acc=100%    1577ms  RTF=0.57
+             Expected: 你好今天天气怎么样
+             Got:      你好今天天气怎么样?
+      + [Chinese] Order_zh     -> acc= 86%    1585ms  RTF=0.67
+             Expected: 我想订一杯咖啡
+             Got:      我想定一杯咖啡。
+      + [Chinese] Thanks       -> acc= 50%    2472ms  RTF=1.30
+             Expected: 谢谢你的帮助
+             Got:      謝謝你的幫助
+      + [French] Salutation   -> acc=100%    1580ms  RTF=0.97
+             Expected: Bonjour comment allez vous
+             Got:      Bonjour, comment allez-vous ?
+      + [French] Commande     -> acc=100%    1511ms  RTF=0.97
+             Expected: Je voudrais un cafe
+             Got:      Je voudrais un café.
+      + [French] Thanks_fr    -> acc=100%    1484ms  RTF=0.95
+             Expected: Merci pour votre aide
+             Got:      Merci pour votre aide.
+
+  ▶ Tiny Q8_0
+    文件: ggml-tiny-q8_0.bin  (42 MB)
+    加载时间: 367 ms
+    平均推理: 599 ms
+    平均 RTF: 0.309
+    平均准确率: 83.2%
+    推理内存增量: 0.0 MB
+    English: 100.0%
+    Chinese: 57.9%
+    French: 91.7%
+
+    Per-phrase results:
+      + [English] Greeting     -> acc=100%     582ms  RTF=0.32
+             Expected: How are you doing today
+             Got:      How are you doing today?
+      + [English] Weather      -> acc=100%     606ms  RTF=0.24
+             Expected: The weather is very nice outside
+             Got:      The weather is very nice outside.
+      + [English] Order        -> acc=100%     617ms  RTF=0.30
+             Expected: I would like a cup of coffee
+             Got:      I would like a cup of coffee.
+      + [Chinese] Greeting_zh  -> acc= 67%     588ms  RTF=0.21
+             Expected: 你好今天天气怎么样
+             Got:      你好今天天氣怎麼樣
+      + [Chinese] Order_zh     -> acc= 57%     609ms  RTF=0.26
+             Expected: 我想订一杯咖啡
+             Got:      我想定義被咖啡
+      + [Chinese] Thanks       -> acc= 50%     595ms  RTF=0.31
+             Expected: 谢谢你的帮助
+             Got:      謝謝你的幫助
+      + [French] Salutation   -> acc=100%     589ms  RTF=0.36
+             Expected: Bonjour comment allez vous
+             Got:      Bonjour, comment allez-vous ?
+      + [French] Commande     -> acc= 75%     609ms  RTF=0.39
+             Expected: Je voudrais un cafe
+             Got:      Je voudrais en café.
+      + [French] Thanks_fr    -> acc=100%     598ms  RTF=0.38
+             Expected: Merci pour votre aide
+             Got:      Merci pour votre aide.
+
+  ▶ Tiny baseline
+    文件: ggml-tiny.bin  (74 MB)
+    加载时间: 399 ms
+    平均推理: 712 ms
+    平均 RTF: 0.368
+    平均准确率: 83.2%
+    推理内存增量: 0.0 MB
+    English: 100.0%
+    Chinese: 57.9%
+    French: 91.7%
+
+    Per-phrase results:
+      + [English] Greeting     -> acc=100%     697ms  RTF=0.39
+             Expected: How are you doing today
+             Got:      How are you doing today?
+      + [English] Weather      -> acc=100%     707ms  RTF=0.28
+             Expected: The weather is very nice outside
+             Got:      The weather is very nice outside.
+      + [English] Order        -> acc=100%     714ms  RTF=0.34
+             Expected: I would like a cup of coffee
+             Got:      I would like a cup of coffee.
+      + [Chinese] Greeting_zh  -> acc= 67%     700ms  RTF=0.25
+             Expected: 你好今天天气怎么样
+             Got:      你好今天天氣怎麼樣
+      + [Chinese] Order_zh     -> acc= 57%     724ms  RTF=0.31
+             Expected: 我想订一杯咖啡
+             Got:      我想定義被咖啡
+      + [Chinese] Thanks       -> acc= 50%     698ms  RTF=0.37
+             Expected: 谢谢你的帮助
+             Got:      謝謝你的幫助
+      + [French] Salutation   -> acc=100%     702ms  RTF=0.43
+             Expected: Bonjour comment allez vous
+             Got:      Bonjour, comment allez-vous ?
+      + [French] Commande     -> acc= 75%     741ms  RTF=0.47
+             Expected: Je voudrais un cafe
+             Got:      Je voudrais en café.
+      + [French] Thanks_fr    -> acc=100%     727ms  RTF=0.47
+             Expected: Merci pour votre aide
+             Got:      Merci pour votre aide.
+
+  ▶ Tiny Q5_1
+    文件: ggml-tiny-q5_1.bin  (31 MB)
+    加载时间: 422 ms
+    平均推理: 792 ms
+    平均 RTF: 0.402
+    平均准确率: 83.2%
+    推理内存增量: -0.0 MB
+    English: 100.0%
+    Chinese: 57.9%
+    French: 91.7%
+
+    Per-phrase results:
+      + [English] Greeting     -> acc=100%     716ms  RTF=0.40
+             Expected: How are you doing today
+             Got:      How are you doing today?
+      + [English] Weather      -> acc=100%     790ms  RTF=0.31
+             Expected: The weather is very nice outside
+             Got:      The weather is very nice outside.
+      + [English] Order        -> acc=100%     757ms  RTF=0.36
+             Expected: I would like a cup of coffee
+             Got:      I would like a cup of coffee.
+      + [Chinese] Greeting_zh  -> acc= 67%     775ms  RTF=0.28
+             Expected: 你好今天天气怎么样
+             Got:      你好今天天氣怎麼樣?
+      + [Chinese] Order_zh     -> acc= 57%    1184ms  RTF=0.50
+             Expected: 我想订一杯咖啡
+             Got:      我想定義被咖啡
+      + [Chinese] Thanks       -> acc= 50%     721ms  RTF=0.38
+             Expected: 谢谢你的帮助
+             Got:      謝謝你的幫助
+      + [French] Salutation   -> acc=100%     741ms  RTF=0.45
+             Expected: Bonjour comment allez vous
+             Got:      Bonjour, comment allez-vous ?
+      + [French] Commande     -> acc= 75%     723ms  RTF=0.46
+             Expected: Je voudrais un cafe
+             Got:      Je voudrais en café.
+      + [French] Thanks_fr    -> acc=100%     722ms  RTF=0.46
+             Expected: Merci pour votre aide
+             Got:      Merci pour votre aide.
+
+============================================================
+  报告完
+============================================================

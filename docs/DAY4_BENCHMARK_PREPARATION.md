@@ -128,7 +128,7 @@ This order is recommended because a smoke test showed that some quantized models
 The benchmark script exports one CSV per model into:
 
 ```text
-benchmarks/day4/
+evaluation/android_benchmarks/day4/
 ```
 
 Each CSV contains three repeated runs for the same model and audio file.
@@ -158,4 +158,4 @@ At least one model failed to load from the external path, while the private app 
 - [ ] Each model produces a CSV file.
 - [ ] Each CSV contains 3 benchmark rows.
 - [ ] CSV fields include model name, quantization, language, model size, load time, inference time, RTF, memory delta, transcript, quality score, and notes.
-- [ ] Results are copied into `benchmarks/day4/`.
+- [ ] Results are copied into `evaluation/android_benchmarks/day4/`.

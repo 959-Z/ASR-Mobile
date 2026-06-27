@@ -1,0 +1,11 @@
+{
+  "Greeting": "How are you doing today?",
+  "Weather": "The weather is very nice outside.",
+  "Order": "I would like a cup of coffee.",
+  "Greeting_zh": "你好今天天气怎么样?",
+  "Order_zh": "我想定一杯咖啡。",
+  "Thanks": "謝謝你的幫助",
+  "Salutation": "Bonjour, comment allez-vous?",
+  "Commande": "Je voudrais un café.",
+  "Thanks_fr": "Merci pour votre aide."
+}
