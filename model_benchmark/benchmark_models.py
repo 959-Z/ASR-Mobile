@@ -26,7 +26,7 @@ ASR-Mobile 模型基准测试脚本
   python benchmark_models.py
 """
 
-import os, sys, time, csv, subprocess, json, re, psutil, gc, platform, struct, wave
+import os, sys, time, csv, subprocess, json, re, psutil, gc, platform, struct, wave, uuid, unicodedata
 from pathlib import Path
 from datetime import datetime
 
@@ -54,16 +54,72 @@ plt.rcParams['axes.unicode_minus'] = False
 # ─────────────────────────────────────────────
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-MODELS_DIR = PROJECT_ROOT / "models"
-OUTPUT_DIR = Path(__file__).resolve().parent
-WHISPER_CLI = Path(r"C:\Users\96402\AppData\Local\Temp\whisper-bin\Release\whisper-cli.exe")
+
+def has_non_ascii(path):
+    try:
+        str(path).encode("ascii")
+        return False
+    except UnicodeEncodeError:
+        return True
+
+def find_runtime_project_root():
+    env_root = os.environ.get("ASR_BENCH_PROJECT_ROOT")
+    if env_root:
+        root = Path(env_root)
+        if root.exists():
+            return root
+
+    if platform.system().lower().startswith("win") and has_non_ascii(PROJECT_ROOT):
+        # whisper.cpp on Windows can fail to load models when the path contains
+        # non-ASCII characters. Use the junction created for local benchmarking.
+        ascii_root = Path(os.environ.get("ASR_BENCH_ASCII_ROOT", r"D:\asr-mobile-bench"))
+        if ascii_root.exists():
+            return ascii_root
+
+    return PROJECT_ROOT
+
+RUNTIME_PROJECT_ROOT = find_runtime_project_root()
+MODELS_DIR = RUNTIME_PROJECT_ROOT / "models"
+OUTPUT_DIR = RUNTIME_PROJECT_ROOT / "model_benchmark"
+
+def find_whisper_cli():
+    candidates = []
+    env_path = os.environ.get("WHISPER_CLI_PATH")
+    if env_path:
+        candidates.append(Path(env_path))
+    candidates.extend([
+        RUNTIME_PROJECT_ROOT / "android/app/src/main/cpp/third_party/whisper.cpp/build/bin/whisper-cli.exe",
+        RUNTIME_PROJECT_ROOT / "android/app/src/main/cpp/third_party/whisper.cpp/build/bin/Release/whisper-cli.exe",
+        PROJECT_ROOT / "android/app/src/main/cpp/third_party/whisper.cpp/build/bin/whisper-cli.exe",
+        PROJECT_ROOT / "android/app/src/main/cpp/third_party/whisper.cpp/build/bin/Release/whisper-cli.exe",
+        Path(r"C:\Users\96402\AppData\Local\Temp\whisper-bin\Release\whisper-cli.exe"),
+    ])
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+WHISPER_CLI = find_whisper_cli()
 
 # 需要测试的模型文件
 MODELS = [
-    ("Whisper Tiny (Multi-lang)", "ggml-tiny.bin"),
-    ("Whisper Tiny EN (English)", "ggml-tiny.en.bin"),
-    ("Whisper Base Q8_0 (Multi-lang)", "ggml-base-q8_0.bin"),
+    ("Tiny baseline", "ggml-tiny.bin"),
+    ("Tiny Q8_0", "ggml-tiny-q8_0.bin"),
+    ("Tiny Q5_1", "ggml-tiny-q5_1.bin"),
+    ("Tiny Q4_0", "ggml-tiny-q4_0.bin"),
+    ("Base baseline", "ggml-base.bin"),
+    ("Base Q8_0", "ggml-base-q8_0.bin"),
+    ("Base Q5_1", "ggml-base-q5_1.bin"),
+    ("Base Q4_0", "ggml-base-q4_0.bin"),
 ]
+
+MODEL_FILTER = os.environ.get("ASR_BENCH_MODEL_FILTER", "").strip().lower()
+if MODEL_FILTER:
+    MODELS = [
+        (name, filename)
+        for name, filename in MODELS
+        if MODEL_FILTER in name.lower() or MODEL_FILTER in filename.lower()
+    ]
 
 # 测试短语（中英法各3条）
 TEST_PHRASES = [
@@ -100,6 +156,15 @@ def levenshtein(ref, hyp):
         prev, curr = curr, prev
     return prev[n]
 
+def normalize_text(text, language):
+    text = text.strip().lower()
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    if language == "zh":
+        return re.sub(r"[^\w\u4e00-\u9fff]", "", text)
+    text = re.sub(r"[^\w\s]", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
 def compute_wer(reference, hypothesis):
     """词错误率（英文等空格分隔语言）"""
     ref = reference.strip().split()
@@ -116,6 +181,8 @@ def compute_cer(reference, hypothesis):
 
 def accuracy(reference, hypothesis, language):
     """准确率 0~1"""
+    reference = normalize_text(reference, language)
+    hypothesis = normalize_text(hypothesis, language)
     if language == "zh":
         return max(0, 1 - compute_cer(reference, hypothesis))
     else:
@@ -137,23 +204,36 @@ def _ensure_ffmpeg():
 
 def generate_test_audio(output_dir):
     """用 gTTS + pydub 生成所有测试音频"""
-    _ensure_ffmpeg()
-
-    from gtts import gTTS
-    from pydub import AudioSegment
-
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     audio_files = []
-    for lang, lang_name, label, text in TEST_PHRASES:
+    missing = []
+    for item in TEST_PHRASES:
+        lang, lang_name, label, text = item
+        filepath = output_dir / f"{lang}_{label}.wav"
+        if filepath.exists() and filepath.stat().st_size > 1000:
+            print(f"  [OK] {filepath.name} already exists")
+            audio_files.append((lang, lang_name, label, text, str(filepath)))
+        else:
+            missing.append(item)
+
+    if not missing:
+        return audio_files
+
+    _ensure_ffmpeg()
+    try:
+        from gtts import gTTS
+        from pydub import AudioSegment
+    except ImportError as e:
+        raise RuntimeError(
+            "Some test audio files are missing, and gTTS/pydub are not installed. "
+            "Install them or restore model_benchmark/test_audio/*.wav."
+        ) from e
+
+    for lang, lang_name, label, text in missing:
         filename = f"{lang}_{label}.wav"
         filepath = output_dir / filename
-
-        if filepath.exists() and filepath.stat().st_size > 1000:
-            print(f"  ⏭  {filename} — already exists")
-            audio_files.append((lang, lang_name, label, text, str(filepath)))
-            continue
 
         # 语言代码映射
         tts_lang = "zh-CN" if lang == "zh" else lang
@@ -172,11 +252,11 @@ def generate_test_audio(output_dir):
 
             dur = len(audio) / 1000
             sz = filepath.stat().st_size / 1024
-            print(f"  ✅ {filename}  ({sz:.0f} KB, {dur:.1f}s)")
+            print(f"  [OK] {filename}  ({sz:.0f} KB, {dur:.1f}s)")
             audio_files.append((lang, lang_name, label, text, str(filepath)))
         except Exception as e:
             # 重试一次
-            print(f"  ⚠  {filename}: {e}, retrying...")
+            print(f"  [WARN] {filename}: {e}, retrying...")
             try:
                 time.sleep(2)
                 tts = gTTS(text=text, lang=tts_lang.split("-")[0], tld="com", slow=False)
@@ -188,10 +268,10 @@ def generate_test_audio(output_dir):
                 mp3_path.unlink()
                 dur = len(audio) / 1000
                 sz = filepath.stat().st_size / 1024
-                print(f"  ✅ {filename} (retry OK, {sz:.0f} KB, {dur:.1f}s)")
+                print(f"  [OK] {filename} (retry OK, {sz:.0f} KB, {dur:.1f}s)")
                 audio_files.append((lang, lang_name, label, text, str(filepath)))
             except Exception as e2:
-                print(f"  ❌ {filename} (retry failed): {e2}")
+                print(f"  [FAIL] {filename} (retry failed): {e2}")
 
     return audio_files
 
@@ -202,6 +282,11 @@ def generate_test_audio(output_dir):
 
 def run_whisper(model_path, audio_path, n_threads=4):
     """运行 whisper-cli 返回 (转录文本, 耗时_ms)"""
+    tmp_dir = OUTPUT_DIR / "_tmp_transcripts"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    output_base = tmp_dir / f"whisper_{os.getpid()}_{uuid.uuid4().hex}"
+    output_txt = output_base.with_suffix(".txt")
+
     start = time.perf_counter()
 
     result = subprocess.run(
@@ -213,18 +298,36 @@ def run_whisper(model_path, audio_path, n_threads=4):
             "--language", "auto",
             "--no-timestamps",
             "--no-prints",
+            "--output-txt",
+            "--output-file", str(output_base),
         ],
-        capture_output=True, text=True, timeout=300
+        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300
     )
     elapsed_ms = (time.perf_counter() - start) * 1000
 
-    # 解析输出 - whisper-cli 输出在 stdout 中，每行一段识别文本
-    lines = [l.strip() for l in result.stdout.strip().split("\n") if l.strip()]
-    transcript = " ".join(lines)
+    transcript = ""
+    if output_txt.exists():
+        transcript = output_txt.read_text(encoding="utf-8", errors="ignore").strip()
 
-    # 如果没有识别到内容
     if not transcript:
-        transcript = result.stderr.strip() if result.stderr.strip() else "[No speech detected]"
+        lines = [l.strip() for l in result.stdout.strip().split("\n") if l.strip()]
+        lines = [
+            line for line in lines
+            if not line.startswith(("whisper_", "main:", "read_audio_data:", "system_info:"))
+        ]
+        transcript = " ".join(lines).strip()
+
+    if not transcript and result.returncode != 0:
+        err = (result.stderr or result.stdout).strip()
+        transcript = f"[whisper-cli failed: {err[:160]}]" if err else "[whisper-cli failed]"
+
+    if not transcript:
+        transcript = "[No speech detected]"
+
+    try:
+        output_txt.unlink(missing_ok=True)
+    except Exception:
+        pass
 
     return transcript, elapsed_ms
 
@@ -272,12 +375,12 @@ def benchmark_all_models(audio_files):
     for display_name, model_filename in MODELS:
         model_path = MODELS_DIR / model_filename
         if not model_path.exists():
-            print(f"\n  ⚠  {model_filename} 不存在，跳过")
+            print(f"\n  [WARN] {model_filename} 不存在，跳过")
             continue
 
         model_size_mb = model_path.stat().st_size / (1024 * 1024)
         print(f"\n{'='*60}")
-        print(f"📦 {display_name}")
+        print(f"[MODEL] {display_name}")
         print(f"   文件: {model_filename}  ({model_size_mb:.0f} MB)")
 
         # ── 加载时间 ──
@@ -346,9 +449,9 @@ def benchmark_all_models(audio_files):
             })
 
             if acc < 0.3:
-                sys.stdout.write(f"⚠  acc={acc:.0%} (expected: '{expected}', got: '{transcript[:50]}')")
+                sys.stdout.write(f"[LOW] acc={acc:.0%} (expected: '{expected}', got: '{transcript[:50]}')")
             else:
-                sys.stdout.write(f"✅ acc={acc:.0%}  {inference_ms:.0f}ms")
+                sys.stdout.write(f"[OK] acc={acc:.0%}  {inference_ms:.0f}ms")
             sys.stdout.flush()
 
         print()
@@ -423,7 +526,7 @@ def plot_accuracy(summaries, output_dir):
     # 用短名称替代，避免中文/换行问题
     names = [s['model_name'].replace(' (Multi-lang)','').replace(' (English)','') for s in summaries]
     values = [s['avg_accuracy'] for s in summaries]
-    colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0'][:len(summaries)]
+    colors = plt.cm.tab20(np.linspace(0, 1, max(len(summaries), 1)))
 
     bars = ax.barh(names, values, color=colors, height=0.5)
     for bar, v in zip(bars, values):
@@ -450,7 +553,7 @@ def plot_speed(summaries, output_dir):
 
     times = [s['avg_inference_ms'] for s in summaries]
     rtfs = [s['avg_rtf'] for s in summaries]
-    colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0'][:len(summaries)]
+    colors = plt.cm.tab20(np.linspace(0, 1, max(len(summaries), 1)))
 
     bars1 = ax1.bar(x - w/2, times, w, color=colors, alpha=0.8, label='Inference (ms)')
     ax1.set_ylabel('Inference Time (ms)', fontsize=12, color='darkblue')
@@ -478,14 +581,14 @@ def plot_speed(summaries, output_dir):
     fig.tight_layout()
     fig.savefig(output_dir / 'speed_comparison.png', dpi=150)
     plt.close(fig)
-    print(f"  📊 speed_comparison.png")
+    print(f"  [OK] speed_comparison.png")
 
 
 def plot_memory(summaries, output_dir):
     """内存/资源对比图"""
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
     names_short = [s['model_name'].split(' (')[0] for s in summaries]
-    colors = ['#4CAF50', '#2196F3', '#FF9800', '#9C27B0'][:len(summaries)]
+    colors = plt.cm.tab20(np.linspace(0, 1, max(len(summaries), 1)))
 
     # 模型大小
     sizes = [s['model_size_mb'] for s in summaries]
@@ -519,7 +622,7 @@ def plot_memory(summaries, output_dir):
     fig.tight_layout()
     fig.savefig(output_dir / 'resource_comparison.png', dpi=150)
     plt.close(fig)
-    print(f"  📊 resource_comparison.png")
+    print(f"  [OK] resource_comparison.png")
 
 
 def plot_language_accuracy(summaries, output_dir):
@@ -551,7 +654,7 @@ def plot_language_accuracy(summaries, output_dir):
     fig.tight_layout()
     fig.savefig(output_dir / 'language_accuracy.png', dpi=150)
     plt.close(fig)
-    print(f"  📊 language_accuracy.png")
+    print(f"  [OK] language_accuracy.png")
 
 
 def plot_overall_ranking(summaries, output_dir):
@@ -561,7 +664,7 @@ def plot_overall_ranking(summaries, output_dir):
     sorted_s = sorted(summaries, key=lambda s: s['overall_score'], reverse=True)
     names = [s['model_name'] for s in sorted_s]
     scores = [s['overall_score'] * 100 for s in sorted_s]
-    colors = ['#FFD700', '#C0C0C0', '#CD7F32', '#8B8B8B'][:len(summaries)]
+    colors = plt.cm.tab20(np.linspace(0, 1, max(len(summaries), 1)))
 
     bars = ax.barh(names, scores, color=colors, height=0.5)
     for bar, v in zip(bars, scores):
@@ -569,7 +672,7 @@ def plot_overall_ranking(summaries, output_dir):
                 f'{v:.1f}%', va='center', fontsize=13, fontweight='bold')
 
     # 排名标签
-    rank_labels = ['#1 (1st)', '#2 (2nd)', '#3 (3rd)', '#4'][:len(summaries)]
+    rank_labels = [f"#{i+1}" for i in range(len(summaries))]
     for i, (bar, rank) in enumerate(zip(bars, rank_labels)):
         ax.text(bar.get_width() / 2, bar.get_y() + bar.get_height()/2,
                 rank, ha='center', va='center', fontsize=14,
@@ -600,22 +703,22 @@ def write_report(summaries, output_dir):
     lines.append(f"  whisper-cli: {WHISPER_CLI}")
     lines.append("")
 
-    lines.append("─" * 60)
-    lines.append("  🏆 综合排名")
-    lines.append("─" * 60)
+    lines.append("-" * 60)
+    lines.append("  Overall ranking")
+    lines.append("-" * 60)
     sorted_s = sorted(summaries, key=lambda s: s['overall_score'], reverse=True)
     for i, s in enumerate(sorted_s):
-        ranks = ['🥇', '🥈', '🥉', '']
-        lines.append(f"  {ranks[i] if i < 3 else f'  {i+1}.'}  {s['model_name']}")
+        rank = f"{i+1}."
+        lines.append(f"  {rank}  {s['model_name']}")
         lines.append(f"      综合得分: {s['overall_score']*100:.1f}%")
         lines.append(f"      准确率:   {s['avg_accuracy']:.1f}%")
         lines.append(f"      推理速度: {s['avg_inference_ms']:.0f} ms")
         lines.append(f"      模型大小: {s['model_size_mb']:.0f} MB")
         lines.append("")
 
-    lines.append("─" * 60)
+    lines.append("-" * 60)
     lines.append("  Detailed Results")
-    lines.append("─" * 60)
+    lines.append("-" * 60)
 
     for s in sorted_s:
         lines.append("")
@@ -647,31 +750,34 @@ def write_report(summaries, output_dir):
     report_text = "\n".join(lines)
     report_path = output_dir / "benchmark_report.txt"
     report_path.write_text(report_text, encoding='utf-8')
-    print(f"  📄 benchmark_report.txt")
+    print(f"  [OK] benchmark_report.txt")
 
     # ── CSV ──
     csv_path = output_dir / "benchmark_results.csv"
     with open(str(csv_path), 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
-        writer.writerow(['Model', 'Language', 'Label', 'Expected', 'Transcript',
+        writer.writerow(['Model', 'ModelFile', 'ModelSizeMB', 'LoadTimeMs',
+                         'Language', 'Label', 'Expected', 'Transcript',
                          'Accuracy%', 'InferenceMs', 'RTF', 'AudioSec', 'MemoryDeltaMB'])
         for s in summaries:
             for r in s['results']:
                 writer.writerow([
-                    s['model_name'], r['language_name'], r['label'],
+                    s['model_name'], s['model_filename'],
+                    f"{s['model_size_mb']:.2f}", f"{s['load_time_ms']:.0f}",
+                    r['language_name'], r['label'],
                     r['expected'], r['transcript'],
                     f"{r['accuracy']*100:.1f}", f"{r['inference_ms']:.0f}",
                     f"{r['rtf']:.3f}", f"{r['audio_sec']:.1f}",
                     f"{r['memory_delta_mb']:.2f}"
                 ])
-    print(f"  📄 benchmark_results.csv")
+    print(f"  [OK] benchmark_results.csv")
 
 
 def print_summary_table(summaries):
     """在控制台输出简洁对比表"""
     print()
     print("=" * 80)
-    print("  📊 快速对比")
+    print("  Quick comparison")
     print("=" * 80)
     print(f"  {'Model':35s} {'Size':>6s} {'Accuracy':>9s} {'Speed':>8s} {'RTF':>6s} {'MemΔ':>6s} {'Load':>7s}")
     print(f"  {'-'*35} {'-'*6} {'-'*9} {'-'*8} {'-'*6} {'-'*6} {'-'*7}")
@@ -679,11 +785,11 @@ def print_summary_table(summaries):
     ranking = sorted(summaries, key=lambda s: s['overall_score'], reverse=True)
     for i, s in enumerate(ranking):
         if i == 0:
-            rank = '🥇'
+            rank = '#1'
         elif i == 1 and len(ranking) > 1:
-            rank = '🥈'
+            rank = '#2'
         elif i == 2 and len(ranking) > 2:
-            rank = '🥉'
+            rank = '#3'
         else:
             rank = '  '
         print(f"  {rank} {s['model_name']:33s} {s['model_size_mb']:5.0f}MB {s['avg_accuracy']:7.1f}% {s['avg_inference_ms']:7.0f}ms {s['avg_rtf']:5.2f} {s['avg_memory_mb']:5.1f}MB {s['load_time_ms']:6.0f}ms")
@@ -695,7 +801,7 @@ def print_summary_table(summaries):
 
 def main():
     os.chdir(str(PROJECT_ROOT))
-    print(f"🚀 ASR Mobile 模型基准测试")
+    print("ASR Mobile model benchmark")
     print(f"   工作目录: {PROJECT_ROOT}")
     print(f"   输出目录: {OUTPUT_DIR}")
     print(f"   模型目录: {MODELS_DIR}")
@@ -703,7 +809,7 @@ def main():
 
     # ── 检查 whisper-cli ──
     if not WHISPER_CLI.exists():
-        print(f"❌ whisper-cli 未找到: {WHISPER_CLI}")
+        print(f"[FAIL] whisper-cli 未找到: {WHISPER_CLI}")
         print("   请下载: https://github.com/ggml-org/whisper.cpp/releases/tag/v1.9.0")
         sys.exit(1)
 
@@ -714,27 +820,27 @@ def main():
         if model_path.exists():
             sz = model_path.stat().st_size / (1024*1024)
             available_models.append((display_name, model_filename))
-            print(f"  ✓ {display_name}: {model_filename} ({sz:.0f} MB)")
+            print(f"  [OK] {display_name}: {model_filename} ({sz:.0f} MB)")
         else:
-            print(f"  ✗ {display_name}: {model_filename} — 不存在")
+            print(f"  [MISSING] {display_name}: {model_filename} - 不存在")
 
     if not available_models:
-        print("\n❌ 没有可测试的模型！")
+        print("\n[FAIL] 没有可测试的模型！")
         sys.exit(1)
 
     # ── 生成测试音频 ──
-    print(f"\n🎤 生成测试音频 (TTS)...")
+    print("\nPreparing test audio...")
     audio_dir = OUTPUT_DIR / "test_audio"
     audio_files = generate_test_audio(audio_dir)
     print(f"   共 {len(audio_files)} 条测试短语")
 
     # ── 运行 benchmark ──
-    print(f"\n🧪 开始基准测试...")
+    print("\nStarting benchmark...")
     print(f"   预热: {N_WARMUP} 次/条  |  正式: {N_RUNS} 次/条")
     all_results = benchmark_all_models(audio_files)
 
     # ── 汇总 ──
-    print(f"\n📊 生成报告与可视化...")
+    print("\nGenerating report and plots...")
     summaries = compute_summary(all_results)
 
     if summaries:
@@ -747,7 +853,7 @@ def main():
         plot_overall_ranking(summaries, OUTPUT_DIR)
         print_summary_table(summaries)
 
-    print(f"\n✅ 所有测试完成!")
+    print("\nAll tests completed.")
     print(f"   报告: {OUTPUT_DIR / 'benchmark_report.txt'}")
     print(f"   输出图表: *.png")
 
