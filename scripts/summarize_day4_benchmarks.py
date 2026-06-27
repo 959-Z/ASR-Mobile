@@ -31,7 +31,11 @@ def fmt(value: float, digits: int = 3) -> str:
 def main() -> None:
     csv_files = sorted(
         path for path in INPUT_DIR.glob("day4-*.csv")
-        if path.name not in {RUNS_OUTPUT.name, SUMMARY_OUTPUT.name}
+        if path.name not in {
+            RUNS_OUTPUT.name,
+            SUMMARY_OUTPUT.name,
+            "day4-quality-analysis.csv",
+        }
     )
     if not csv_files:
         raise SystemExit(f"No day4 CSV files found in {INPUT_DIR}")
